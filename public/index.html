@@ -1,122 +1,40 @@
-<!doctype html>
-<html lang="zh-Hant">
-<head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>多資產即時進場助手</title>
-<style>
-:root{--bg:#090b10;--panel:#111722;--panel2:#171e29;--line:#2a3442;--text:#f4f7fb;--muted:#8d98a8;--green:#35eb78;--red:#ff4a5a;--yellow:#ffd84a;--cyan:#30d8e8}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif}
-.wrap{max-width:1600px;margin:auto;padding:20px}.header{display:flex;justify-content:space-between;align-items:center;gap:14px;margin-bottom:16px}
-h1{margin:0;font-size:22px}.sub{color:var(--muted);font-size:12px;margin-top:4px}.controls{display:flex;gap:8px;flex-wrap:wrap}
-select,button{background:#121823;color:#fff;border:1px solid var(--line);border-radius:10px;padding:10px 12px}button{cursor:pointer}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:16px}
-.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.metric{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:12px}
-.metric small{display:block;color:var(--muted)}.metric strong{display:block;font-size:20px;margin-top:6px}
-.table-wrap{overflow:auto}.history{width:100%;min-width:1450px;border-collapse:collapse;white-space:nowrap}
-.history th,.history td{padding:10px 12px;border-bottom:1px solid var(--line);text-align:center;font-size:13px}
-.history th{color:var(--muted);background:#0f141d;position:sticky;top:0}.history th:first-child,.history td:first-child{text-align:left;position:sticky;left:0;background:#111722}
-.buy{color:var(--green);font-weight:800}.sell{color:var(--red);font-weight:800}.win{color:var(--green);font-weight:800}.loss{color:var(--red);font-weight:800}.open{color:var(--yellow);font-weight:800}
-.status{font-size:12px;color:var(--muted)}.ok{color:var(--green)}.bad{color:var(--red)}
-@media(max-width:800px){.header{align-items:flex-start;flex-direction:column}.metrics{grid-template-columns:1fr 1fr}}
-</style>
-</head>
-<body>
-<div class="wrap">
-  <div class="header">
-    <div>
-      <h1>多資產即時進場助手</h1>
-      <div class="sub">TradingView → Webhook → Supabase → 網頁歷史單</div>
-    </div>
-    <div class="controls">
-      <select id="symbol">
-        <option value="XAUUSD">XAUUSD</option>
-        <option value="BTCUSDT">BTCUSDT</option>
-        <option value="ETHUSDT">ETHUSDT</option>
-        <option value="SOLUSDT">SOLUSDT</option>
-        <option value="">全部商品</option>
-      </select>
-      <button onclick="loadTrades()">重新整理</button>
-    </div>
-  </div>
+多資產即時進場助手
+交易後台｜正式單歷史紀錄與即時狀態
+● 已連線
+商品搜尋
+輸入 XAU、BTC、ETH...
+時間週期
+輸入 5M、15M、1H...
+模式
 
-  <div class="metrics">
-    <div class="metric"><small>目前商品</small><strong id="mSymbol">XAUUSD</strong></div>
-    <div class="metric"><small>歷史單數</small><strong id="mCount">0</strong></div>
-    <div class="metric"><small>獲利單</small><strong id="mWin">0</strong></div>
-    <div class="metric"><small>虧損單</small><strong id="mLoss">0</strong></div>
-  </div>
+全部模式
+結果
 
-  <div class="card">
-    <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:10px">
-      <strong>歷史交易紀錄｜一單一列</strong>
-      <span class="status" id="status">尚未讀取</span>
-    </div>
-    <div class="table-wrap">
-      <table class="history">
-        <thead>
-          <tr>
-            <th>單號</th><th>訊號時間</th><th>商品</th><th>週期</th><th>方向</th><th>模式</th>
-            <th>Entry</th><th>SL</th><th>TP1</th><th>TP2</th><th>TP3</th><th>品質</th>
-            <th>結果</th><th>出場價</th><th>來源</th>
-          </tr>
-        </thead>
-        <tbody id="rows"></tbody>
-      </table>
-    </div>
-  </div>
-</div>
+全部結果
+關鍵字搜尋
+單號 / 多空 / 模式...
+查詢
+清除
+📊
+總交易
+0
+✅
+獲利
+0
+❌
+虧損
+0
+⏳
+進行中
+0
+%
+勝率
+0.0%
+顯示
 
-<script>
-const $ = s => document.querySelector(s);
-function n(v){ return v===null||v===undefined||v==='' ? '-' : Number(v).toFixed(2); }
-function modeText(v){
-  const m={1:'① 回踩',2:'② 續攻',3:'③ 突破',4:'④ 強趨勢',5:'⑤ 急拉回落',6:'⑥ SMC'};
-  return m[v] || v || '-';
-}
-function resultClass(v){ return v==='WIN'?'win':v==='LOSS'?'loss':'open'; }
-async function loadTrades(){
-  const symbol=$('#symbol').value;
-  $('#mSymbol').textContent=symbol||'全部';
-  $('#status').textContent='讀取中...';
-  try{
-    const url='/api/trades'+(symbol?('?symbol='+encodeURIComponent(symbol)):'');
-    const r=await fetch(url);
-    const j=await r.json();
-    if(!r.ok) throw new Error(j.error||'讀取失敗');
-    const list=j.trades||[];
-    $('#mCount').textContent=list.length;
-    $('#mWin').textContent=list.filter(x=>x.result==='WIN').length;
-    $('#mLoss').textContent=list.filter(x=>x.result==='LOSS').length;
-    const body=$('#rows'); body.innerHTML='';
-    if(!list.length){
-      body.innerHTML='<tr><td colspan="15" style="padding:28px;color:#8d98a8">目前沒有交易資料</td></tr>';
-    }else{
-      for(const t of list){
-        const dir=(t.direction||'').toUpperCase();
-        body.innerHTML += `<tr>
-          <td>#${t.id}</td>
-          <td>${t.signal_time ? new Date(t.signal_time).toLocaleString('zh-TW',{hour12:false}) : '-'}</td>
-          <td>${t.symbol||'-'}</td>
-          <td>${t.timeframe||'-'}</td>
-          <td class="${dir==='BUY'?'buy':'sell'}">${dir||'-'}</td>
-          <td>${modeText(t.mode)}</td>
-          <td>${n(t.entry)}</td><td>${n(t.sl)}</td><td>${n(t.tp1)}</td><td>${n(t.tp2)}</td><td>${n(t.tp3)}</td>
-          <td>${t.quality==null?'-':Number(t.quality).toFixed(0)+'%'}</td>
-          <td class="${resultClass(t.result)}">${t.result||'OPEN'}</td>
-          <td>${n(t.exit_price)}</td>
-          <td>${t.source||'-'}</td>
-        </tr>`;
-      }
-    }
-    $('#status').innerHTML='<span class="ok">已連線</span>｜'+list.length+' 筆';
-  }catch(e){
-    $('#status').innerHTML='<span class="bad">尚未連線</span>｜'+e.message;
-    $('#rows').innerHTML='<tr><td colspan="15" style="padding:28px;color:#8d98a8">部署並設定 Supabase 後，交易會顯示在這裡。</td></tr>';
-  }
-}
-$('#symbol').addEventListener('change',loadTrades);
-loadTrades();
-</script>
-</body>
-</html>
+10
+筆
+請先選擇商品與週期
+單號	訊號時間	商品	週期	方向	模式	Entry	SL	TP1	TP2	TP3	品質	結果	出場價	最後更新	來源
+請先搜尋並選擇「商品」與「時間週期」
+0 筆
