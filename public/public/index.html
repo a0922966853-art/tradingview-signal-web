@@ -170,7 +170,7 @@ td.tp-hit{background:rgba(47,226,123,.22)!important;color:var(--green);font-weig
         </select>
         <span>筆</span>
       </div>
-      <div class="scope" id="activeScope">請先選擇商品與週期</div>
+      <div class="scope"><span id="activeScope">請先選擇商品與週期</span>｜單號由網站依時間自動排序</div>
     </div>
 
     <div class="table-wrap">
@@ -319,6 +319,22 @@ function renderStats(){
   $('#sOpen').textContent=open;
   $('#sRate').textContent=(settled?win*100/settled:0).toFixed(1)+'%';
 }
+function buildSequenceMap(){
+  const timeframe=parseTf();
+  const scope=allTrades
+    .filter(trade=>String(trade.timeframe)===String(timeframe))
+    .slice()
+    .sort((a,b)=>{
+      const ta=new Date(a.signal_time||a.created_at||0).getTime();
+      const tb=new Date(b.signal_time||b.created_at||0).getTime();
+      if(ta!==tb) return ta-tb;
+      return Number(a.id||0)-Number(b.id||0);
+    });
+
+  const map=new Map();
+  scope.forEach((trade,index)=>map.set(String(trade.id),index+1));
+  return map;
+}
 function renderTable(){
   const pageSize=Number($('#pageSize').value);
   const totalPages=Math.max(1,Math.ceil(filtered.length/pageSize));
@@ -327,6 +343,7 @@ function renderTable(){
 
   const start=(page-1)*pageSize;
   const rows=filtered.slice(start,start+pageSize);
+  const sequenceMap=buildSequenceMap();
   const body=$('#rows');
 
   body.innerHTML='';
@@ -337,7 +354,7 @@ function renderTable(){
     for(const trade of rows){
       const direction=String(trade.direction||'').toUpperCase();
       const result=resultInfo(trade.result);
-      const displayId=trade.external_trade_id??trade.id;
+      const displayId=sequenceMap.get(String(trade.id))||'-';
 
       body.innerHTML+=`<tr class="${result.row}">
         <td>#${displayId}</td>
