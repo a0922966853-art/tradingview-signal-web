@@ -57,14 +57,9 @@ td:first-child{background:#142033;font-weight:800}
 tr:hover td{filter:brightness(1.08)}
 td.dir-buy{background:rgba(47,226,123,.12)!important;color:var(--green);font-weight:900}
 td.dir-sell{background:rgba(255,82,106,.12)!important;color:var(--red);font-weight:900}
-tr.row-open td{background:rgba(255,196,0,.055)}
-tr.row-win td{background:rgba(47,226,123,.075)}
-tr.row-loss td{background:rgba(255,82,106,.085)}
-tr.row-be td{background:rgba(35,199,232,.07)}
-tr.row-open td:first-child{background:#1b1a12}
-tr.row-win td:first-child{background:#101d17}
-tr.row-loss td:first-child{background:#211317}
-tr.row-be td:first-child{background:#101d20}
+/* 每一格依真正命中狀態上色，不再整列染色 */
+tr.row-open td, tr.row-win td, tr.row-loss td, tr.row-be td{background:transparent}
+tr.row-open td:first-child, tr.row-win td:first-child, tr.row-loss td:first-child, tr.row-be td:first-child{background:#142033}
 td.result-open{background:rgba(255,196,0,.28)!important}
 td.result-win{background:rgba(47,226,123,.28)!important}
 td.result-loss{background:rgba(255,82,106,.30)!important}
@@ -74,7 +69,9 @@ td.result-be{background:rgba(35,199,232,.28)!important}
 .badge-win{background:rgba(47,226,123,.16);border:1px solid rgba(47,226,123,.5);color:var(--green)}
 .badge-loss{background:rgba(255,82,106,.16);border:1px solid rgba(255,82,106,.5);color:var(--red)}
 .badge-be{background:rgba(35,199,232,.16);border:1px solid rgba(35,199,232,.5);color:var(--cyan)}
-td.tp-hit{background:rgba(47,226,123,.22)!important;color:var(--green);font-weight:900}
+td.sl-hit{background:rgba(255,82,106,.34)!important;color:#fff;font-weight:900}
+td.tp-hit{background:rgba(47,226,123,.30)!important;color:#eafff1;font-weight:900}
+td.tp-wait{background:transparent!important;color:var(--text)}
 .footer{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 14px;color:var(--muted);font-size:12px}
 .pages{display:flex;gap:6px;flex-wrap:wrap}
 .pages button{width:auto;min-width:36px;min-height:34px;padding:5px 9px}
@@ -356,6 +353,11 @@ function renderTable(){
       const result=resultInfo(trade.result);
       const displayId=sequenceMap.get(String(trade.id))||'-';
 
+      const tp3Reached=!!trade.hit_tp3;
+      const tp2Reached=!!trade.hit_tp2||tp3Reached;
+      const tp1Reached=!!trade.hit_tp1||tp2Reached||trade.result==='WIN';
+      const slReached=trade.result==='LOSS';
+
       body.innerHTML+=`<tr class="${result.row}">
         <td>#${displayId}</td>
         <td>${timeText(trade.signal_time)}</td>
@@ -364,10 +366,10 @@ function renderTable(){
         <td class="${direction==='BUY'?'dir-buy':'dir-sell'}">${direction==='BUY'?'多單':'空單'}</td>
         <td>${modeText(trade.mode)}</td>
         <td>${numberText(trade.entry)}</td>
-        <td>${numberText(trade.sl)}</td>
-        <td class="${trade.hit_tp1?'tp-hit':''}">${numberText(trade.tp1)}${trade.hit_tp1?' ✓':''}</td>
-        <td class="${trade.hit_tp2?'tp-hit':''}">${numberText(trade.tp2)}${trade.hit_tp2?' ✓':''}</td>
-        <td class="${trade.hit_tp3?'tp-hit':''}">${numberText(trade.tp3)}${trade.hit_tp3?' ✓':''}</td>
+        <td class="${slReached?'sl-hit':''}">${numberText(trade.sl)}${slReached?' ✕':''}</td>
+        <td class="${tp1Reached?'tp-hit':'tp-wait'}">${numberText(trade.tp1)}${tp1Reached?' ✓':''}</td>
+        <td class="${tp2Reached?'tp-hit':'tp-wait'}">${numberText(trade.tp2)}${tp2Reached?' ✓':''}</td>
+        <td class="${tp3Reached?'tp-hit':'tp-wait'}">${numberText(trade.tp3)}${tp3Reached?' ✓':''}</td>
         <td>${trade.quality==null?'-':Number(trade.quality).toFixed(0)+'%'}</td>
         <td class="${result.cell}"><span class="badge ${result.badge}">${result.text}</span></td>
         <td>${numberText(trade.exit_price)}</td>
